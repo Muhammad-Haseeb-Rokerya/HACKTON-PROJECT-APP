@@ -1,0 +1,80 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+
+  <script>
+    try {
+      document.documentElement.dataset.mode =
+        localStorage.hcm_mode || '';
+    } catch (e) {}
+  </script>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HCM Lite - Payroll</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Fredoka:wght@500;600;700&display=swap"
+  >
+
+  <link rel="stylesheet" href="variables.css">
+  <link rel="stylesheet" href="global.css">
+</head>
+
+<body>
+  <div id="nav"></div>
+
+  <main>
+    <div class="card">
+      <input id="m" type="month" onchange="payroll()">
+
+      <button class="g" onclick="exportPay()">
+        ⬇ Download PDF
+      </button>
+
+      <p>
+        Press Pay and the employee gets a salary alert showing
+        their presents and leaves.
+      </p>
+
+      <div id="sum"></div>
+
+      <div class="t">
+        <table>
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Salary</th>
+              <th>Days present</th>
+              <th>Leave days</th>
+              <th>Net pay</th>
+              <th></th>
+            </tr>
+          </thead>
+
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <script src="storage.js"></script>
+  <script src="theme.js"></script>
+  <script src="app.js"></script>
+  <script src="auth.js"></script>
+  <script src="pdf.js"></script>
+  <script src="pay.js"></script>
+
+  <script>
+    nav(guard('admin'));
+
+    m.value = today().slice(0, 7);
+
+    payroll();
+  </script>
+</body>
+</html>

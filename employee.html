@@ -1,0 +1,329 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+
+  <script>
+    try {
+      document.documentElement.dataset.mode =
+        localStorage.hcm_mode || '';
+    } catch (e) {}
+  </script>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HCM Lite - My Home</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Fredoka:wght@500;600;700"
+  >
+
+  <link rel="stylesheet" href="variables.css">
+  <link rel="stylesheet" href="global.css">
+</head>
+
+<body>
+  <div id="nav"></div>
+
+  <main>
+    <div class="banner">
+      <div>
+        <h2 id="hi">Hello 👋</h2>
+        <p id="sub"></p>
+      </div>
+
+      <div class="clock" id="clk"></div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <span class="ic">📍</span>
+        <div id="st">-</div>
+        <button class="g" onclick="checkIn()">Check in</button>
+        <button onclick="checkOut()">Check out</button>
+      </div>
+
+      <div class="card">
+        <span class="ic">🔥</span>
+        <div class="n" id="streak">0</div>
+        Day streak
+        <div id="sm" style="color:var(--mu);font-size:13px"></div>
+      </div>
+
+      <div class="card">
+        <span class="ic">🎯</span>
+        <div class="n" id="mpres">0</div>
+        Days present this month
+      </div>
+
+      <div class="card">
+        <span class="ic">🏖️</span>
+        <div class="n" id="bal">0</div>
+        Leave days left
+        <div class="bar">
+          <i id="lb"></i>
+        </div>
+      </div>
+    </div>
+
+    <br>
+
+    <div class="card">
+      <h3>🏝️ Apply for leave</h3>
+      <input id="lf" type="date">
+      <input id="lt" type="date">
+      <br>
+      <input id="lr" placeholder="Reason" style="width:100%">
+      <button onclick="applyLeave()">Apply</button>
+    </div>
+
+    <div class="card">
+      <h3>📝 Submit a task</h3>
+
+      <input id="tt" placeholder="Task title" style="width:100%">
+
+      <textarea
+        id="tx"
+        rows="3"
+        placeholder="Type your work here (optional if you attach a file)"
+        style="width:100%"
+      ></textarea>
+
+      <input id="tf" type="file">
+      <br>
+
+      <button onclick="submitTask()">Submit task</button>
+    </div>
+
+    <div class="card">
+      <h3>My submitted tasks</h3>
+
+      <div class="t">
+        <table>
+          <thead>
+            <tr>
+              <th>Task</th>
+              <th>Text</th>
+              <th>File</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+
+          <tbody id="mt"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>My attendance</h3>
+
+      <div class="t">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>In</th>
+              <th>Out</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+
+          <tbody id="att"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>My leaves</h3>
+
+      <div class="t">
+        <table>
+          <thead>
+            <tr>
+              <th>Dates</th>
+              <th>Days</th>
+              <th>Status</th>
+              <th>Comment</th>
+            </tr>
+          </thead>
+
+          <tbody id="ml"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>💰 Salary received</h3>
+
+      <div class="t">
+        <table>
+          <thead>
+            <tr>
+              <th>Month</th>
+              <th>Amount</th>
+              <th>Days present</th>
+              <th>Leave days</th>
+              <th>Paid on</th>
+            </tr>
+          </thead>
+
+          <tbody id="mp"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <button class="r" onclick="resign()">Resign</button>
+    </div>
+
+    <div class="card">
+      <h3>🤖 Smart helper</h3>
+      <div id="helper"></div>
+    </div>
+  </main>
+
+  <script src="storage.js"></script>
+  <script src="theme.js"></script>
+  <script src="app.js"></script>
+  <script src="auth.js"></script>
+  <script src="attendance.js"></script>
+  <script src="leave.js"></script>
+  <script src="helper.js"></script>
+  <script src="tasks.js"></script>
+  <script src="pay.js"></script>
+
+  <script>
+    const u = guard('employee');
+    nav(u);
+
+    /*
+      Consecutive working days attended.
+      Weekends and approved leave do not break the streak.
+    */
+    function streak() {
+      const d = DB.get();
+
+      const S = new Set(
+        d.att
+          .filter(a => a.uid == u.id)
+          .map(a => a.date)
+      );
+
+      const L = d.leaves.filter(
+        l => l.uid == u.id && l.status == 'approved'
+      );
+
+      let n = 0;
+      let x = new Date();
+
+      const iso = () => x.toLocaleDateString('en-CA');
+
+      if (!S.has(iso())) {
+        x.setDate(x.getDate() - 1);
+      }
+
+      for (let i = 0; i < 400; i++, x.setDate(x.getDate() - 1)) {
+        const k = iso();
+
+        if (S.has(k)) {
+          n++;
+          continue;
+        }
+
+        if (!wkd(k)) continue;
+
+        if (L.some(l => l.from <= k && l.to >= k)) continue;
+
+        break;
+      }
+
+      return n;
+    }
+
+    /* Greeting */
+    const h = new Date().getHours();
+
+    hi.textContent =
+      (h < 12 ? 'Good morning' :
+       h < 17 ? 'Good afternoon' : 'Good evening') +
+      ', ' + u.name.split(' ')[0] + ' 👋';
+
+    /* Live clock */
+    const tick = () => {
+      clk.textContent = new Date().toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    };
+
+    tick();
+    setInterval(tick, 1000);
+
+    /* Employee dashboard */
+    function home() {
+      const d = DB.get();
+
+      const a = d.att.find(
+        x => x.uid == u.id && x.date == today()
+      );
+
+      $('#st').innerHTML = a
+        ? `In ${a.in} · Out ${a.out || '-'} · <span class="tag">${a.status}</span>`
+        : 'Not checked in today';
+
+      sub.textContent = a
+        ? (
+            a.out
+              ? 'All done for today. Great job! 🌟'
+              : 'You are checked in. Have a productive day! 💪'
+          )
+        : 'Tap Check in to start your day ⏰';
+
+      const b = balance(u.id);
+      const q = d.company.quota || 1;
+      const s = streak();
+
+      $('#bal').textContent = b;
+      lb.style.width = Math.max(0, b / q * 100) + '%';
+
+      streak_.textContent = s;
+
+      $('#sm').textContent = s >= 5
+        ? 'On fire! 🚀'
+        : s
+          ? 'Keep it going!'
+          : 'Check in to start one';
+
+      $('#mpres').textContent = d.att
+        .filter(x =>
+          x.uid == u.id &&
+          x.date.startsWith(today().slice(0, 7))
+        )
+        .reduce(
+          (n, x) => n + (x.status == 'half day' ? 0.5 : 1),
+          0
+        );
+
+      showAtt();
+      myLeaves();
+      myTasks();
+      myPays();
+    }
+
+    const streak_ = $('#streak');
+
+    home();
+    helperBox();
+    payAlert();
+
+    addEventListener('storage', () => {
+      home();
+      payAlert();
+    });
+  </script>
+</body>
+</html>

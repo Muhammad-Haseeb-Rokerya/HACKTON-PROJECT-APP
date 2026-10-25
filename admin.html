@@ -1,0 +1,295 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+
+  <script>
+    try {
+      document.documentElement.dataset.mode =
+        localStorage.hcm_mode || '';
+    } catch (e) {}
+  </script>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HCM Lite - Dashboard</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Fredoka:wght@500;600;700"
+  >
+
+  <link rel="stylesheet" href="variables.css">
+  <link rel="stylesheet" href="global.css">
+</head>
+
+<body>
+  <div id="nav"></div>
+
+  <main>
+    <div class="banner">
+      <div>
+        <h2 id="hi">Hello 👋</h2>
+        <p id="sub"></p>
+
+        <button onclick="location.href='employees.html'">
+          ➕ Add employee
+        </button>
+
+        <button onclick="location.href='payroll.html'">
+          💰 Run payroll
+        </button>
+
+        <button onclick="location.href='leaves.html'">
+          🏖️ Review leaves
+        </button>
+
+        <button onclick="exportAtt()">
+          ⬇ Attendance CSV
+        </button>
+      </div>
+
+      <div class="clock" id="clk"></div>
+    </div>
+
+    <div class="grid" id="n"></div>
+
+    <div class="two">
+      <div class="card">
+        <h3>📊 Today at a glance</h3>
+        <div class="split" id="chart"></div>
+      </div>
+
+      <div class="card">
+        <h3>🏆 Top attendance this month</h3>
+        <div id="lb"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Today's attendance</h3>
+
+      <div class="t">
+        <table>
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>In</th>
+              <th>Out</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>🤖 Smart helper</h3>
+      <div id="helper"></div>
+    </div>
+  </main>
+
+  <script src="storage.js"></script>
+  <script src="theme.js"></script>
+  <script src="app.js"></script>
+  <script src="auth.js"></script>
+  <script src="helper.js"></script>
+  <script src="pay.js"></script>
+
+  <script>
+    const u = guard('admin');
+    nav(u);
+
+    const d = DB.get();
+    const t = today();
+    const A = d.att.filter(a => a.date == t);
+
+    const c = s => A.filter(a => a.status == s).length;
+    const M = t.slice(0, 7);
+
+    const E = d.users.filter(
+      x => x.role == 'employee' && !x.resigned
+    );
+
+    const paid = d.pays
+      .filter(p => p.month == M)
+      .reduce((s, p) => s + p.amount, 0);
+
+    const due = E
+      .filter(e => !d.pays.some(
+        p => p.uid == e.id && p.month == M
+      ))
+      .reduce((s, e) => s + calc(e, M).net, 0);
+
+    const onLv = d.leaves.filter(
+      l => l.status == 'approved' && l.from <= t && l.to >= t
+    ).length;
+
+    /* Greeting banner and live clock */
+    const h = new Date().getHours();
+
+    hi.textContent =
+      (h < 12 ? 'Good morning' :
+       h < 17 ? 'Good afternoon' : 'Good evening') +
+      ', ' + u.name.split(' ')[0] + ' 👋';
+
+    const inn = A.filter(
+      a => E.some(e => e.id == a.uid)
+    ).length;
+
+    sub.textContent = E.length
+      ? `${inn} of ${E.length} teammates checked in today.`
+      : 'Add your first employee to get started.';
+
+    const tick = () => {
+      clk.textContent = new Date().toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    };
+
+    tick();
+    setInterval(tick, 1000);
+
+    /* Statistic cards */
+    $('#n').innerHTML = [
+      ['👥', 'Employees', E.length],
+      ['✅', 'Present', c('present')],
+      ['⏰', 'Late', c('late')],
+      ['🌗', 'Half day', c('half day')],
+      ['🏖️', 'On leave', onLv],
+      ['⏳', 'Pending leaves',
+        d.leaves.filter(l => l.status == 'pending').length],
+      ['💸', 'Payroll paid', paid],
+      ['🧾', 'Payroll due', due]
+    ].map(x => `
+      <div class="card">
+        <span class="ic">${x[0]}</span>
+        <div class="n" data-n="${x[2]}">0</div>
+        ${x[1]}
+      </div>
+    `).join('');
+
+    countUp();
+
+    /* Donut chart of today's attendance */
+    const abs = Math.max(0, E.length - inn - onLv);
+
+    const seg = [
+      ['Present', c('present'), '#059669'],
+      ['Late', c('late'), '#d97706'],
+      ['Half day', c('half day'), '#0ea5e9'],
+      ['On leave', onLv, '#4f46e5'],
+      ['Absent', abs, '#e11d48']
+    ];
+
+    const tot = seg.reduce((s, x) => s + x[1], 0);
+    let acc = 0;
+
+    const grad = tot
+      ? seg.map(x => {
+          const a = acc / tot * 100;
+          acc += x[1];
+
+          return `${x[2]} ${a}% ${acc / tot * 100}%`;
+        }).join(',')
+      : 'var(--soft) 0 100%';
+
+    $('#chart').innerHTML = `
+      <div class="donut" style="background:conic-gradient(${grad})">
+        <b>${E.length}</b>
+      </div>
+
+      <ul class="leg">
+        ${seg.map(x => `
+          <li>
+            <i style="background:${x[2]}"></i>
+            ${x[0]} <b>${x[1]}</b>
+          </li>
+        `).join('')}
+      </ul>
+    `;
+
+    /* Leaderboard: attendance days this month */
+    const sc = E.map(e => ({
+      e,
+      s: d.att
+        .filter(a => a.uid == e.id && a.date.startsWith(M))
+        .reduce(
+          (s, a) => s + (a.status == 'half day' ? 0.5 : 1),
+          0
+        )
+    }))
+    .filter(x => x.s > 0)
+    .sort((a, b) => b.s - a.s)
+    .slice(0, 5);
+
+    const mx = sc.length ? sc[0].s : 1;
+
+    $('#lb').innerHTML = sc.map((x, i) => `
+      <div class="lb">
+        <span class="m">
+          ${['🥇', '🥈', '🥉', '🏅', '🏅'][i]}
+        </span>
+
+        ${avatar(x.e.name)}
+
+        <span style="min-width:90px">
+          ${esc(x.e.name)}
+        </span>
+
+        <div class="bar">
+          <i style="width:${x.s / mx * 100}%"></i>
+        </div>
+
+        <small>${x.s}d</small>
+      </div>
+    `).join('') || `
+      <div class="empty">
+        🌱 No check-ins yet this month.<br>
+        Be the first on the board!
+      </div>
+    `;
+
+    /* Today's attendance table */
+    $('#rows').innerHTML = A.map(a => `
+      <tr>
+        <td>
+          ${avatar(nameOf(a.uid))}
+          ${esc(nameOf(a.uid))}
+        </td>
+        <td>${a.in}</td>
+        <td>${a.out || '-'}</td>
+        <td><span class="tag">${a.status}</span></td>
+      </tr>
+    `).join('') || `
+      <tr>
+        <td colspan="4" class="empty">
+          😴 No check-ins yet today
+        </td>
+      </tr>
+    `;
+
+    /* Export attendance CSV */
+    function exportAtt() {
+      csv('attendance.csv', [
+        ['Date', 'Employee', 'In', 'Out', 'Status'],
+        ...d.att.map(a => [
+          a.date,
+          nameOf(a.uid),
+          a.in,
+          a.out,
+          a.status
+        ])
+      ]);
+    }
+
+    helperBox();
+  </script>
+</body>
+</html>

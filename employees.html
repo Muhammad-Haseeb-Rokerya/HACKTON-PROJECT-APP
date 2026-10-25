@@ -1,0 +1,86 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+
+  <script>
+    try {
+      document.documentElement.dataset.mode =
+        localStorage.hcm_mode || '';
+    } catch (e) {}
+  </script>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HCM Lite - Employees</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Fredoka:wght@500;600;700&display=swap"
+  >
+
+  <link rel="stylesheet" href="variables.css">
+  <link rel="stylesheet" href="global.css">
+</head>
+
+<body>
+  <div id="nav"></div>
+
+  <main>
+    <div class="card">
+      <h3>Add employee (creates login)</h3>
+
+      <input id="en" placeholder="Name">
+      <input id="ee" placeholder="Email">
+      <input id="ep" placeholder="Password">
+      <input id="ed" placeholder="Department">
+      <input id="es" type="number" placeholder="Monthly salary">
+
+      <button onclick="addEmp()">Add</button>
+    </div>
+
+    <div class="card">
+      <input
+        id="q"
+        placeholder="🔍 Search"
+        oninput="render()"
+      >
+
+      <select id="f" onchange="render()"></select>
+
+      <button class="g" onclick="exportEmp()">
+        ⬇ Export CSV
+      </button>
+
+      <div class="t">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Dept</th>
+              <th>Salary</th>
+              <th></th>
+            </tr>
+          </thead>
+
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <script src="storage.js"></script>
+  <script src="theme.js"></script>
+  <script src="app.js"></script>
+  <script src="auth.js"></script>
+  <script src="employees.js"></script>
+
+  <script>
+    nav(guard('admin'));
+    render();
+  </script>
+</body>
+</html>
